@@ -107,7 +107,43 @@ const SoraVideoGenerator: React.FC = () => {
   // ─── Segment management ─────────────────────────────────────────────
 
   const loadSegmentsFromText = useCallback(() => {
-    const lines = inputText
+    const trimmed = inputText.trim();
+    if (!trimmed) return;
+
+    // Detect JSON array input and extract prompt fields
+    if (trimmed.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const prompts: string[] = parsed
+            .map((item: Record<string, unknown>) => {
+              if (typeof item === "string") return item;
+              if (typeof item === "object" && item !== null) {
+                // Support common field names: prompt, text, content, description
+                return (
+                  (item.prompt as string) ||
+                  (item.text as string) ||
+                  (item.content as string) ||
+                  (item.description as string) ||
+                  ""
+                );
+              }
+              return "";
+            })
+            .map((s: string) => s.trim())
+            .filter((s: string) => s.length > 0);
+          if (prompts.length > 0) {
+            setSegments(prompts.map((p) => makeSegment(p, defaultDuration)));
+            return;
+          }
+        }
+      } catch {
+        // Not valid JSON, fall through to line-based parsing
+      }
+    }
+
+    // Fallback: split by newlines
+    const lines = trimmed
       .split(/\n{2,}|\n/)
       .map((l) => l.trim())
       .filter((l) => l.length > 0);
