@@ -760,7 +760,7 @@ const SoraVideoGenerator: React.FC = () => {
                   />
 
                   {/* Optional image URL for image-to-video */}
-                  <div className="mt-1">
+                  <div className="mt-1 flex gap-2">
                     <input
                       type="text"
                       className="daisy-input daisy-input-bordered daisy-input-sm w-full"
@@ -770,6 +770,26 @@ const SoraVideoGenerator: React.FC = () => {
                         updateSegment(segIdx, { imageUrl: e.target.value })
                       }
                     />
+                    <label className="daisy-btn daisy-btn-sm daisy-btn-outline shrink-0 cursor-pointer">
+                      Upload
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            updateSegment(segIdx, {
+                              imageUrl: reader.result as string,
+                            });
+                          };
+                          reader.readAsDataURL(file);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
                   </div>
 
                   {/* Video slots */}
