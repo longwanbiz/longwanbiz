@@ -81,6 +81,9 @@ const SoraVideoGenerator: React.FC = () => {
   const [systemPrompt, setSystemPrompt] = useState("");
   const [isConverting, setIsConverting] = useState(false);
 
+  // --- Global image (applied to all segments as fallback) ---
+  const [globalImageUrl, setGlobalImageUrl] = useState("");
+
   // --- Segments ---
   const [segments, setSegments] = useState<Segment[]>([]);
 
@@ -305,7 +308,7 @@ const SoraVideoGenerator: React.FC = () => {
             nFrames: seg.duration,
             quality,
             removeWatermark,
-            imageUrls: seg.imageUrl ? [seg.imageUrl] : undefined,
+            imageUrls: (seg.imageUrl || globalImageUrl) ? [seg.imageUrl || globalImageUrl] : undefined,
           }),
         });
         const data = await res.json();
@@ -329,6 +332,7 @@ const SoraVideoGenerator: React.FC = () => {
       aspectRatio,
       quality,
       removeWatermark,
+      globalImageUrl,
       updateVideoSlot,
       pollTaskStatus,
     ]
@@ -698,6 +702,72 @@ const SoraVideoGenerator: React.FC = () => {
                 + Add Segment
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* ─── Global Image (optional, applied to all segments) ────── */}
+        <div className="daisy-card bg-base-100 shadow">
+          <div className="daisy-card-body py-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold shrink-0">Global Image (all segments):</span>
+              <input
+                type="text"
+                className="daisy-input daisy-input-bordered daisy-input-sm w-full"
+                placeholder="Image URL applied to all segments without their own image"
+                value={globalImageUrl}
+                onChange={(e) => setGlobalImageUrl(e.target.value)}
+              />
+              <label className="daisy-btn daisy-btn-sm daisy-btn-outline shrink-0 cursor-pointer">
+                Upload
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const formData = new FormData();
+                    formData.append("file", file);
+                    try {
+                      const res = await fetch("/api/upload", {
+                        method: "POST",
+                        body: formData,
+                      });
+                      const data = await res.json();
+                      if (!res.ok)
+                        throw new Error(data.error || "Upload failed");
+                      const fullUrl = `${window.location.origin}${data.url}`;
+                      setGlobalImageUrl(fullUrl);
+                    } catch (err) {
+                      alert(
+                        err instanceof Error
+                          ? err.message
+                          : "Image upload failed"
+                      );
+                    }
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              {globalImageUrl && (
+                <button
+                  className="daisy-btn daisy-btn-sm daisy-btn-ghost text-error shrink-0"
+                  onClick={() => setGlobalImageUrl("")}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            {globalImageUrl && (
+              <div className="mt-2 flex items-center gap-2">
+                <img
+                  src={globalImageUrl}
+                  alt="Global"
+                  className="h-16 w-16 rounded object-cover border"
+                />
+                <span className="text-xs opacity-60 break-all">{globalImageUrl}</span>
+              </div>
+            )}
           </div>
         </div>
 
