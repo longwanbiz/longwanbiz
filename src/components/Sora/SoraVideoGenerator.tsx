@@ -776,16 +776,29 @@ const SoraVideoGenerator: React.FC = () => {
                         type="file"
                         accept="image/*"
                         className="hidden"
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
-                          const reader = new FileReader();
-                          reader.onload = () => {
-                            updateSegment(segIdx, {
-                              imageUrl: reader.result as string,
+                          const formData = new FormData();
+                          formData.append("file", file);
+                          try {
+                            const res = await fetch("/api/upload", {
+                              method: "POST",
+                              body: formData,
                             });
-                          };
-                          reader.readAsDataURL(file);
+                            const data = await res.json();
+                            if (!res.ok)
+                              throw new Error(data.error || "Upload failed");
+                            // Use full origin URL so Kie API can access it
+                            const fullUrl = `${window.location.origin}${data.url}`;
+                            updateSegment(segIdx, { imageUrl: fullUrl });
+                          } catch (err) {
+                            alert(
+                              err instanceof Error
+                                ? err.message
+                                : "Image upload failed"
+                            );
+                          }
                           e.target.value = "";
                         }}
                       />
