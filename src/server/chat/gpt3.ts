@@ -12,6 +12,7 @@ import axios from "axios";
 import type { ChatHistory, Turn } from "./chatHistory";
 import { ChatHistoryStore } from "./chatHistory";
 import { PromptableApi } from "promptable";
+import { getDocuments } from "../../pages/api/upload";
 
 // AI ASSISTANT BOT:
 const DEFAULT_AGENT_NAME = "Assistant";
@@ -99,15 +100,22 @@ function formatChatHistoryTurns(turns: Turn[]) {
   return turns.map((turn) => `${turn.speaker}: ${turn.text}`).join("\n");
 }
 
+function formatDocumentContext(userId: string): string {
+  const docs = getDocuments(userId);
+  if (docs.length === 0) return "";
+  return "\n\nThe user has uploaded the following documents for reference:\n" + docs.join("\n\n") + "\n\nUse the above documents as context to help the user.\n";
+}
+
 function formatPromptText(chatHistory: ChatHistory, promptTemplate: string) {
   console.log("PromptTemplate", promptTemplate);
-  const numTokens = countBPETokens(promptTemplate);
+  const docContext = formatDocumentContext(chatHistory.userId);
+  const numTokens = countBPETokens(promptTemplate + docContext);
   let turnsText = formatChatHistoryTurns(chatHistory.turns);
   console.log("turnsText", turnsText);
   console.log("Pre Truncation", turnsText);
   turnsText = leftTruncateTranscript(turnsText, 4000 - numTokens);
   console.log("Post Truncation", turnsText);
-  const prompt = injectValuesIntoPrompt(promptTemplate, { input: turnsText });
+  const prompt = injectValuesIntoPrompt(promptTemplate, { input: turnsText }) + docContext;
   console.log("Prompt", prompt);
   return prompt;
 }

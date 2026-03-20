@@ -46,6 +46,7 @@ export default function Chat() {
 
   // ref to track text area and scroll text into view
   const ref = useRef<HTMLParagraphElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleScroll = useCallback(() => {
     if (ref.current) {
@@ -54,6 +55,8 @@ export default function Chat() {
   }, []);
 
   const [messages, setMessages] = useState<Message[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     handleScroll();
@@ -83,6 +86,41 @@ export default function Chat() {
         },
       }),
     });
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]!;
+      const text = await file.text();
+      try {
+        const response = await fetch("/api/upload", {
+          method: "POST",
+          body: JSON.stringify({
+            userId,
+            fileName: file.name,
+            fileContent: text,
+          }),
+        });
+        if (response.ok) {
+          setUploadedFiles((prev) => [...prev, file.name]);
+          setMessages((prev) => [
+            ...prev,
+            createMessage(`[Uploaded document: ${file.name}]`, true),
+          ]);
+        }
+      } catch (err) {
+        console.error("Upload failed:", err);
+      }
+    }
+    setIsUploading(false);
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   // Mutations
@@ -173,7 +211,32 @@ export default function Chat() {
               })}
             </ul>
           </div>
+          {uploadedFiles.length > 0 && (
+            <div className="flex flex-wrap gap-2 px-2 py-1">
+              {uploadedFiles.map((name, i) => (
+                <span key={i} className="rounded-md bg-primary/20 px-2 py-1 text-sm">
+                  {name}
+                </span>
+              ))}
+            </div>
+          )}
           <div className="flex items-center space-x-2">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              multiple
+              accept=".txt,.md,.csv,.json,.html,.xml,.log,.js,.ts,.tsx,.jsx,.py,.java,.c,.cpp,.css,.yml,.yaml,.toml,.ini,.cfg,.conf,.sh,.bat,.sql,.rb,.go,.rs,.swift,.kt,.dart,.r,.m,.h,.php"
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className={classNames("daisy-btn")}
+              title="Upload documents"
+            >
+              {isUploading ? "..." : "Upload"}
+            </button>
             <ReactTextareaAutosize
               maxRows={5}
               onKeyDown={handleKeyDown}
